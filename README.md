@@ -4,15 +4,15 @@
 - vk_task.py;
 
 ## main.py
-Чтобы запустить данную программу необходимо выполнить в командной строке (терминале) следующую команду:
+Для того чтобы запустить данную программу, необходимо выполнить в командной строке (терминале) следующую команду:
 ```
 python main.py <user_id> <access_token> [--output_format <format>] [--output_name <name>]
 ```
 Где:
 - `user_id` — ID пользователя ВКонтакте, список друзей которого вы хотите извлечь (обязательно);
 - `access_token` — токен доступа к VK API, который вы должны получить на сайте VK API (обязательно);
-- `--output_format` — формат выходного файла. Может быть CSV, JSON или TSV. Значение по умолчанию — CSV (необязательно);
-- '--output_name' — имя выходного файла (путь выходного файла). Значение по умолчанию `report` (необязательно);
+- `--output_format` — формат выходного файла. Может быть CSV, JSON, TSV или YAML. Значение по умолчанию — CSV (необязательно);
+- `--output_name` — имя выходного файла (путь выходного файла). Значение по умолчанию `report` (необязательно);
 
 
 ### Например
@@ -23,19 +23,21 @@ python main.py 123456789 token123 --output_format json --output_name my_friends
 
 ## vk_task.py
 Данный файл состоит из трех классов:
-- HttpClient;
-- Paginator;
-- FriendsParser;
+- `HttpClient`;
+- `Paginator`;
+- `FriendsParser`;
 
 
 ### HttpClient
 Этот класс содержит один метод `request`, который выполняет HTTP-запрос к API-серверу ВКонтакте и возвращает информацию о друзьях в виде списка при условии, что код состояния ответа равен 200. В противном случае он вызывает исключение с соответствующем сообщением об ошибке.
 
 ### Paginator
+Данный класс позволяет нам получать список друзей пользователя, у которого количество друзей превышает 5000 человек.
 Этот класс содержит два метода: `get_friends` и `get_all_friends`.  
 Метод `get_friends` получает в качестве входных данных смещение (offset) и возвращает список друзей для заданного ID пользователя, ограниченный параметром count.  
 Метод `get_all_friends` возращает список всех друзей пользователя (учет большого количества друзей).  
-Оба метода используют класс `HttpClient` для выполнения HTTP-запроса к API-серверу ВКонтакте
+Оба метода используют класс `HttpClient` для выполнения HTTP-запроса к API-серверу ВКонтакте.
+Максимальное количество друзей ВКонтакте — 10000 человек. Данная система справляется с ограничением по оперативной памяти.
 
 ### FriendsParser
 Этот класс содержит пять методов: `parse`, `extract_data`, `get_value_from_data`, `get_date_value` и `create_report`.  
@@ -49,42 +51,45 @@ python main.py 123456789 token123 --output_format json --output_name my_friends
 - Пол;
 
 Метод `get_value_from_data` используется для получения страны и города. Возвращает 'title' для страны и города соответственно.  
-Метод `get_date_value` принимает дату в формате `DD.MM.YYYY` и возращает ее в ISO формате, т.е. `YYYY-MM-DD`. Если у пользователя отсутствует дата рождения или в ней отстутсвтует год рождения, то возрващается значение None. Вызывается методом `create_report`.  
-Метод `create_report` создает отчет в одном из трех форматов: CSV, JSON и TSV, в соответствии со значением входного параметра `output_format`.
+Метод `get_date_value` принимает дату в формате `DD.MM.YYYY` и возращает ее в ISO формате, т.е. `YYYY-MM-DD`. Если у пользователя отсутствует дата рождения или в ней отсутствует год рождения, то возвращается значение None. Вызывается методом `create_report`.  
+Метод `create_report` создает отчет в одном из трех форматов: CSV, JSON, TSV или YAML в соответствии со значением входного параметра `output_format`.
 Метод `csv_tsv_file_write` используется для сохранения отчета либо в формат CSV, либо в TSV. Вызывается методом `create_report`.
 
 
 ## Использование:
-1. Создайте экземпляр класса FriendsParser, передав следующие входные данные:
-  - Авторизационный токен (`access_token`);
-  - ID пользователя (`user_id`);
-  - Формат выходного файла (`output_format`). По умолчанию - CSV;
-  - Путь к выходному файлу (`output_name`). По умолчанию - файл с именем report в текущей директории;  
+В этой системе используется модуль `argspace` для определения и обработки аргументов командной строки (терминала). Класс `argspace.ArgumentParser` позволяет нам определять ожидаемые аргументы и их типы, а также любых необязательные (опциональные) аргументы и их значения по умолчанию:
+```python
+parser = argparse.ArgumentParser(description="VK friends parser")
+parser.add_argument("user_id", type=int, help="VK user ID")
+parser.add_argument("access_token", type=str, help="VK API access token")
+parser.add_argument(
+    "--output_format",
+    type=str,
+    choices=["csv", "json", "tsv", "yaml"],
+    default="csv",
+    help="Output file format"
+)
+parser.add_argument(
+    "--output_name",
+    type=str,
+    default="report",
+    help="Output file name"
+)
+```
+После запуска программы в командной строке (терминале) происходит следующее:
+1. Получаем доступ к аргументам, указанным в командной строке (терминале). Создается экземпляр класса FriendsParser, которому передаются эти аргументы:
   ```python
-  user_id = 123456789
-  access_token = "your_access_token"
-  parser = FriendsParser(user_id, access_token)
+  if __name__ == '__main__':
+      args = parser.parse_args()
+      vk_parser = FriendsParser(args.user_id, args.access_token, args.output_format, args.output_name)
   ```
     
-2. Выполните вызов метода `parse` чтобы получить всех друзей пользователя:
+2. Выполняется вызов метода `parse`, чтобы получить всех друзей пользователя:
   ```python
-  friends_list = parser.parse()
+  friends = vk_parser.parse()
   ```
 
-3. Выполните вызов метода `create_report`, чтобы создать отчет из списка друзей в одном из следующих форматов:
-  - CSV;
-  - TSV;
-  - JSON;
+3. Вызывается метод `create_report`, позволяющий создать отчет из списка друзей в одном из требуемых форматов:
   ```python
-  parser.create_report(friends_list, output_format="csv", output_name="my_friends")
+  vk_parser.create_report(friends)
   ```
-
-## Зависимости
-Данная система зависит от следующих библиотек:
-- `requests`;
-- `structlog`;
-- `typing`;
-- `csv`;
-- `json`;
-- `datetime`;
-- `argspace`;
