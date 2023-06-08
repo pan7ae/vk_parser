@@ -126,30 +126,22 @@ class FriendsParser:
                 first_name=current_friend["first_name"],
                 last_name=current_friend["last_name"]
             )
-        if self.output_format == "csv":
-            self.csv_tsv_file_write(report_list, delimiter=",")
-        elif self.output_format == "json":
-            try:
-                with open(f"{self.output_name}.{self.output_format}", "w") as file:
-                    json.dump(report_list, file)
-            except (TypeError, IOError):
-                logger.info(
-                    f"Error while creating {self.output_name}.{self.output_format} file"
-                )
-        elif self.output_format == "tsv":
-            self.csv_tsv_file_write(report_list, delimiter="\t")
-        elif self.output_format == "yaml":
-            try:
-                with open(f"{self.output_name}.{self.output_format}", "w") as file:
-                    yaml.dump(report_list, file, default_flow_style=False)
-            except (TypeError, IOError):
-                logger.info(
-                    f"Error while creating {self.output_name}.{self.output_format} file"
-                )
+
+        output_formats = {
+            "csv": self.write_csv_tsv_file,
+            "json": self.write_json_file,
+            "tsv": self.write_csv_tsv_file,
+            "yaml": self.write_yaml_file
+        }
+
+        write_method = output_formats.get(self.output_format)
+        if write_method:
+            write_method(report_list)
         else:
             raise ValueError(f"Invalid output file format: {self.output_format}. Allowed formats: csv, json, tsv, yaml")
 
-    def csv_tsv_file_write(self, friends_list: list[dict[str, Any]], delimiter: str) -> None:
+    def write_csv_tsv_file(self, friends_list: list[dict[str, Any]]) -> None:
+        delimiter = "," if self.output_format == "csv" else "\t"
         try:
             with open(f"{self.output_name}.{self.output_format}", "w", encoding="utf-8", newline="") as file:
                 writer = csv.DictWriter(file, fieldnames=friends_list[0].keys(), delimiter=delimiter)
@@ -157,6 +149,24 @@ class FriendsParser:
                 for row in friends_list:
                     writer.writerow(row)
         except (TypeError, ValueError, IOError, IndexError):
+            logger.info(
+                f"Error while creating {self.output_name}.{self.output_format} file"
+            )
+
+    def write_json_file(self, friends_list: list[dict[str, Any]]) -> None:
+        try:
+            with open(f"{self.output_name}.{self.output_format}", "w") as file:
+                json.dump(friends_list, file)
+        except (TypeError, IOError):
+            logger.info(
+                f"Error while creating {self.output_name}.{self.output_format} file"
+            )
+
+    def write_yaml_file(self, friends_list: list[dict[str, Any]]) -> None:
+        try:
+            with open(f"{self.output_name}.{self.output_format}", "w") as file:
+                yaml.dump(friends_list, file, default_flow_style=False)
+        except (TypeError, IOError):
             logger.info(
                 f"Error while creating {self.output_name}.{self.output_format} file"
             )
